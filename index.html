@@ -23,8 +23,8 @@ button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:14px;wid
 .go{background:var(--accent);color:var(--accent-text);font-size:17px}
 .go:disabled{opacity:.45}
 .ghost{background:transparent;color:var(--accent);border:1px solid var(--line);margin-top:8px;padding:10px}
-.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.seg button{background:var(--bg);color:var(--text);border:1px solid var(--line);padding:11px;font-size:14px}
+.seg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.seg button{background:var(--bg);color:var(--text);border:1px solid var(--line);padding:11px 4px;font-size:14px}
 .seg button.on{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
 .slots{display:flex;flex-wrap:wrap;gap:8px}
 .slots button{width:auto;padding:0 14px;min-height:44px;background:var(--bg);color:var(--text);border:1px solid var(--line);font-size:15px;font-weight:500}
@@ -55,6 +55,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
   <div class="seg">
     <button type="button" id="t-pay" class="on">With payment</button>
     <button type="button" id="t-confirm">Confirm only</button>
+    <button type="button" id="t-rem">Reminder</button>
   </div>
 
   <button type="button" class="go pickbtn" id="pick" hidden>Pick from phone contacts</button>
@@ -148,8 +149,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
 <script>
 const TPL = {
   pay: "Greetings of the day! We can plan your virtual consultation with Dr. Chandan Chawla for *{date}, {time}*. If this is suitable, please pay *{fee}* to *{upi}* and share the payment details here *within {hours} hours* to confirm. Thank you!",
-  confirm: "Greetings of the day! We can plan your virtual consultation with Dr. Chandan Chawla for *{date}, {time}*. If this is suitable, please confirm at the earliest. Thank you!"
+  confirm: "Greetings of the day! We can plan your virtual consultation with Dr. Chandan Chawla for *{date}, {time}*. If this is suitable, please confirm at the earliest. Thank you!",
+  rem: "Greetings of the day! This is a reminder message for your virtual session with Dr. Chandan Chawla for today, i.e., *{date}, {time}*. Thank you!"
 };
+const TYPE_NAMES={pay:"with payment",confirm:"confirm only",rem:"reminder"};
 const UPI="9810210561@UPI";
 const $ = id => document.getElementById(id);
 // ---- SETTINGS: fill these in after deploying the Apps Script ----
@@ -162,7 +165,7 @@ const store = {
 const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const SLOTS=["9:30am","10:00am","6:00pm","6:15pm","6:30pm","6:45pm","7:00pm","7:15pm","7:30pm","7:45pm","Other"];
-let type = store.get("wa_type")==="confirm" ? "confirm" : "pay";
+let type = ["pay","confirm","rem"].includes(store.get("wa_type")) ? store.get("wa_type") : "pay";
 let timeStr="";
 const tplKey = () => "wa_tpl_"+type;
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -209,9 +212,11 @@ function setType(t){
   store.set("wa_type",t);
   $("t-pay").classList.toggle("on",t==="pay");
   $("t-confirm").classList.toggle("on",t==="confirm");
+  $("t-rem").classList.toggle("on",t==="rem");
+  if(!dateTouched) $("date").value = ymd(t==="rem"?0:1);   // reminders go out the same day
   $("payfields").hidden = t!=="pay";
   $("tpl").value = store.get(tplKey()) || TPL[t];
-  $("tpllabel").textContent = t==="pay" ? "Template: with payment" : "Template: confirm only";
+  $("tpllabel").textContent = "Template: "+TYPE_NAMES[t];
   refresh();
 }
 function status(msg,bad){
@@ -224,11 +229,16 @@ function status(msg,bad){
   const v=store.get("wa_"+k);
   if(v && [...$(k).options].some(o=>o.value===v||o.text===v)) $(k).value=v;
 });
-const t=new Date(); t.setDate(t.getDate()+1);
-$("date").value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;
+let dateTouched=false;
+function ymd(offset){
+  const d=new Date(); d.setDate(d.getDate()+offset);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+$("date").addEventListener("input",()=>{ dateTouched=true; });
 document.querySelectorAll("input,textarea,select").forEach(e=>e.addEventListener("input",refresh));
 $("t-pay").onclick=()=>{ store.set(tplKey(),$("tpl").value); setType("pay"); };
 $("t-confirm").onclick=()=>{ store.set(tplKey(),$("tpl").value); setType("confirm"); };
+$("t-rem").onclick=()=>{ store.set(tplKey(),$("tpl").value); setType("rem"); };
 
 // time slots (nothing selected on open)
 const oh=$("oh");
