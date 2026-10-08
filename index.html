@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WA Message Maker</title>
+<style>
+:root{--bg:#f4f6f5;--card:#fff;--text:#1b2421;--muted:#66736d;--line:#d9e0dc;--accent:#128c4a;--accent-text:#fff;--bubble:#dcf8c6;--warn:#b3261e}
+@media (prefers-color-scheme:dark){:root{--bg:#101513;--card:#1a2220;--text:#e8efeb;--muted:#93a39b;--line:#2c3834;--accent:#25b866;--accent-text:#04140b;--bubble:#1f4d35;--warn:#ff8a80}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:520px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+label:first-child{margin-top:0}
+input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px}
+textarea{min-height:150px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+.preview{background:var(--bubble);border-radius:12px;padding:12px;white-space:pre-wrap;word-break:break-word}
+button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:14px;width:100%;cursor:pointer}
+.go{background:var(--accent);color:var(--accent-text);font-size:17px}
+.go:disabled{opacity:.45}
+.ghost{background:transparent;color:var(--accent);border:1px solid var(--line);margin-top:8px;padding:10px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg button{background:var(--bg);color:var(--text);border:1px solid var(--line);padding:11px;font-size:14px}
+.seg button.on{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+.slots{display:flex;flex-wrap:wrap;gap:8px}
+.slots button{width:auto;padding:0 14px;min-height:44px;background:var(--bg);color:var(--text);border:1px solid var(--line);font-size:15px;font-weight:500}
+.slots button.on{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+details summary{cursor:pointer;color:var(--muted);font-size:14px}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.warn{color:var(--warn)}
+.pickbtn{margin-bottom:6px}
+#status{font-size:14px;margin-top:10px}
+#fallback{display:block;font-size:14px;margin-top:6px;color:var(--accent)}
+.hist{border-top:1px solid var(--line);padding:8px 0;font-size:14px}
+.hist:first-child{border-top:0}
+.hist small{color:var(--muted);display:block}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:10}
+.sheet{background:var(--card);color:var(--text);width:100%;max-width:520px;max-height:90%;overflow-y:auto;border-radius:18px 18px 0 0;padding:16px}
+.sheet h2{font-size:18px;margin:0 0 10px}
+.sheet .to{font-weight:600;margin-bottom:10px;word-break:break-word}
+.sheet .go{margin-top:14px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+<h1>WhatsApp Message Maker</h1>
+
+<div class="card">
+  <label>Message type</label>
+  <div class="seg">
+    <button type="button" id="t-pay" class="on">With payment</button>
+    <button type="button" id="t-confirm">Confirm only</button>
+  </div>
+
+  <button type="button" class="go pickbtn" id="pick" hidden>Pick from phone contacts</button>
+  <div class="hint" id="nopick" hidden>Contact picker needs Chrome on Android. Type the name and number instead.</div>
+
+  <label for="name">Patient name</label>
+  <input id="name" autocomplete="off" placeholder="Fills from contacts, or type">
+  <div id="telwrap" hidden>
+    <label for="telsel">This contact has several numbers. Choose one:</label>
+    <select id="telsel"></select>
+  </div>
+
+  <label for="cc">Country code (used only when the number has no + in front)</label>
+  <select id="cc">
+    <option value="91" selected>India +91</option>
+    <option value="1">USA / Canada +1</option>
+    <option value="44">UK +44</option>
+    <option value="971">UAE +971</option>
+    <option value="966">Saudi Arabia +966</option>
+    <option value="974">Qatar +974</option>
+    <option value="965">Kuwait +965</option>
+    <option value="968">Oman +968</option>
+    <option value="973">Bahrain +973</option>
+    <option value="65">Singapore +65</option>
+    <option value="61">Australia +61</option>
+    <option value="49">Germany +49</option>
+    <option value="977">Nepal +977</option>
+    <option value="880">Bangladesh +880</option>
+    <option value="94">Sri Lanka +94</option>
+  </select>
+
+  <label for="phone">Mobile number</label>
+  <input id="phone" type="tel" inputmode="tel" placeholder="98XXXXXXXX or +1 415 555 2671">
+  <div class="hint" id="dest"></div>
+
+  <label for="date">Date</label>
+  <input id="date" type="date">
+
+  <label>Time (IST)</label>
+  <div id="slots" class="slots"></div>
+  <div id="other" class="row3" hidden>
+    <select id="oh"><option value="">Hr</option></select>
+    <select id="om"><option value="">Min</option><option>00</option><option>15</option><option>30</option><option>45</option></select>
+    <select id="oa"><option value="">AM/PM</option><option>am</option><option>pm</option></select>
+  </div>
+
+  <div id="payfields">
+    <div class="row">
+      <div><label for="fee">Fee (Rs.)</label>
+        <select id="fee">
+          <option>1000</option><option>1250</option><option>1500</option><option>1750</option>
+          <option>2000</option><option selected>2250</option><option>2500</option><option>3000</option>
+        </select></div>
+      <div><label for="hours">Pay within</label>
+        <select id="hours">
+          <option value="4">4 hours</option><option value="6">6 hours</option><option value="8">8 hours</option>
+          <option value="12">12 hours</option><option value="24" selected>24 hours</option>
+        </select></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="preview" id="preview"></div>
+  <div style="height:12px"></div>
+  <button class="go" id="send">Open in WhatsApp</button>
+  <button class="ghost" id="copy">Copy message</button>
+  <div id="status"></div>
+  <a id="fallback" href="#" target="_blank" rel="noopener" hidden>WhatsApp didn't open? Tap here</a>
+</div>
+
+<div id="review" class="overlay" hidden>
+  <div class="sheet">
+    <h2>Check before sending</h2>
+    <div class="to" id="rv-to"></div>
+    <div class="preview" id="rv-msg"></div>
+    <button class="go" id="confirm">Confirm &amp; open WhatsApp</button>
+    <button class="ghost" id="back">Go back and edit</button>
+  </div>
+</div>
+
+<details class="card">
+  <summary>Edit template</summary>
+  <label for="tpl" id="tpllabel">Template</label>
+  <textarea id="tpl"></textarea>
+  <div class="hint">Use {date} {time} {fee} {upi} {hours}. *text* makes bold in WhatsApp. Saved on this phone.</div>
+  <button class="ghost" id="reset">Reset to default</button>
+</details>
+</main>
+
+<script>
+const TPL = {
+  pay: "Greetings of the day! We can plan your virtual consultation with Dr. Chandan Chawla for *{date}, {time}*. If this is suitable, please pay *{fee}* to *{upi}* and share the payment details here *within {hours} hours* to confirm. Thank you!",
+  confirm: "Greetings of the day! We can plan your virtual consultation with Dr. Chandan Chawla for *{date}, {time}*. If this is suitable, please confirm at the earliest. Thank you!"
+};
+const UPI="9810210561@UPI";
+const $ = id => document.getElementById(id);
+// ---- SETTINGS: fill these in after deploying the Apps Script ----
+const ENDPOINT = "https://script.google.com/macros/s/AKfycbwbh_keNnaLTloHOva-ttZGn2RY5OdEoQ8KdnfuZhXd4DtDjr4AK5CDDb27QL4TbAnJ/exec";
+const TOKEN    = "DEADLIFT IS A LIFE SAVER";   // must match Code.gs
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+};
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const SLOTS=["9:30am","10:00am","6:00pm","6:15pm","6:30pm","6:45pm","7:00pm","7:15pm","7:30pm","7:45pm","Other"];
+let type = store.get("wa_type")==="confirm" ? "confirm" : "pay";
+let timeStr="";
+const tplKey = () => "wa_tpl_"+type;
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function ord(n){ const s=["th","st","nd","rd"], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+function fmtDate(v){
+  if(!v) return "{date}";
+  const [y,m,d]=v.split("-").map(Number);
+  const dt=new Date(y,m-1,d);
+  return `${DAYS[dt.getDay()]}, ${ord(d)} ${MONTHS[m-1]} ${y}`;
+}
+function fmtTime(){ return timeStr ? timeStr+" IST" : "{time}"; }
+function build(){
+  const map={
+    date:fmtDate($("date").value),
+    time:fmtTime(),
+    fee:`Rs. ${parseFloat($("fee").value).toFixed(2)}`,
+    upi:UPI,
+    hours:$("hours").value
+  };
+  return $("tpl").value.replace(/\{(\w+)\}/g,(m,k)=>k in map?map[k]:m);
+}
+function cleanPhone(){
+  const raw=$("phone").value.trim();
+  let p=raw.replace(/\D/g,"");
+  if(!p) return "";
+  if(raw.startsWith("+")) return p;
+  if(p.startsWith("00")) return p.slice(2);
+  const cc=$("cc").value;
+  if(p.startsWith(cc) && p.length>=cc.length+8) return p;
+  if(p.startsWith("0")) p=p.slice(1);
+  return cc+p;
+}
+function refresh(){
+  $("preview").textContent=build();
+  const num=cleanPhone();
+  $("dest").textContent=num?("Will message: +"+num):"";
+  $("send").disabled = num.length<8 || !timeStr || !$("name").value.trim();
+  ["fee","hours"].forEach(k=>store.set("wa_"+k,$(k).value));
+  store.set(tplKey(),$("tpl").value);
+}
+function setType(t){
+  type=t;
+  store.set("wa_type",t);
+  $("t-pay").classList.toggle("on",t==="pay");
+  $("t-confirm").classList.toggle("on",t==="confirm");
+  $("payfields").hidden = t!=="pay";
+  $("tpl").value = store.get(tplKey()) || TPL[t];
+  $("tpllabel").textContent = t==="pay" ? "Template: with payment" : "Template: confirm only";
+  refresh();
+}
+function status(msg,bad){
+  $("status").textContent=msg;
+  $("status").className=bad?"warn":"";
+}
+
+// ---- init ----
+["fee","hours"].forEach(k=>{
+  const v=store.get("wa_"+k);
+  if(v && [...$(k).options].some(o=>o.value===v||o.text===v)) $(k).value=v;
+});
+const t=new Date(); t.setDate(t.getDate()+1);
+$("date").value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;
+document.querySelectorAll("input,textarea,select").forEach(e=>e.addEventListener("input",refresh));
+$("t-pay").onclick=()=>{ store.set(tplKey(),$("tpl").value); setType("pay"); };
+$("t-confirm").onclick=()=>{ store.set(tplKey(),$("tpl").value); setType("confirm"); };
+
+// time slots (nothing selected on open)
+const oh=$("oh");
+for(let i=1;i<=12;i++){const o=document.createElement("option");o.textContent=i;oh.appendChild(o);}
+const slotBtns=[];
+function readOther(){
+  const h=$("oh").value,m=$("om").value,a=$("oa").value;
+  timeStr=(h&&m&&a)?`${h}:${m}${a}`:"";
+  refresh();
+}
+SLOTS.forEach(s=>{
+  const b=document.createElement("button");
+  b.type="button"; b.textContent=s;
+  b.onclick=()=>{
+    slotBtns.forEach(x=>x.classList.toggle("on",x===b));
+    if(s==="Other"){ $("other").hidden=false; readOther(); }
+    else{ $("other").hidden=true; timeStr=s; refresh(); }
+  };
+  $("slots").appendChild(b); slotBtns.push(b);
+});
+["oh","om","oa"].forEach(id=>$(id).addEventListener("change",readOther));
+
+// phone contact picker (Chrome on Android, needs a normal https page)
+if("contacts" in navigator && "ContactsManager" in window){ $("pick").hidden=false; }
+else{ $("nopick").hidden=false; }
+$("pick").onclick=async()=>{
+  try{
+    const res=await navigator.contacts.select(["name","tel"],{multiple:false});
+    if(!res.length) return;
+    const c=res[0];
+    $("name").value=(c.name&&c.name[0])||"";
+    const tels=(c.tel||[]).map(x=>x.replace(/[^\d+]/g,"")).filter((v,i,a)=>v&&a.indexOf(v)===i);
+    if(tels.length>1){
+      $("telsel").innerHTML=tels.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("");
+      $("telwrap").hidden=false;
+    }else{ $("telwrap").hidden=true; }
+    $("phone").value=tels[0]||"";
+    status("");
+    refresh();
+  }catch(e){
+    status("Could not open contacts. Type the name and number instead.",true);
+  }
+};
+$("telsel").addEventListener("change",()=>{ $("phone").value=$("telsel").value; refresh(); });
+
+// review step, then open + log
+$("send").onclick=()=>{
+  $("rv-to").textContent="To: "+$("name").value.trim()+" · +"+cleanPhone();
+  $("rv-msg").textContent=build();
+  $("review").hidden=false;
+};
+$("back").onclick=()=>{ $("review").hidden=true; };
+$("review").addEventListener("click",e=>{ if(e.target===$("review")) $("review").hidden=true; });
+$("confirm").onclick=()=>{
+  const num=cleanPhone(), msg=build();
+  const url=`https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+  const payload={
+    name:$("name").value.trim(), phone:num, dateISO:$("date").value,
+    timeText:fmtTime(), type:type,
+    fee:type==="pay"?$("fee").value:"", hours:type==="pay"?$("hours").value:"",
+    message:msg
+  };
+  $("review").hidden=true;
+  window.open(url,"_blank");
+  $("fallback").href=url; $("fallback").hidden=false;
+  if(ENDPOINT.indexOf("PASTE_")===0){ status("Log not set up yet: add the Apps Script URL in the settings at the top of the code.",true); return; }
+  status("Saving to log...");
+  fetch(ENDPOINT,{method:"POST",body:JSON.stringify(Object.assign({token:TOKEN},payload))})
+    .then(r=>r.json())
+    .then(j=>{
+      if(!j.ok) throw new Error(j.error||"rejected");
+      status("Saved to log ✓");
+      $("name").value=""; $("phone").value=""; $("telwrap").hidden=true;
+      refresh();
+    })
+    .catch(err=>status("Could not confirm the log was saved ("+err.message+"). Please check the Sheet.",true));
+};
+$("copy").onclick=async()=>{
+  try{ await navigator.clipboard.writeText(build()); $("copy").textContent="Copied!"; }
+  catch(e){ $("copy").textContent="Copy failed"; }
+  setTimeout(()=>$("copy").textContent="Copy message",1500);
+};
+$("reset").onclick=()=>{ $("tpl").value=TPL[type]; refresh(); };
+
+setType(type);
+</script>
+</body>
+</html>
